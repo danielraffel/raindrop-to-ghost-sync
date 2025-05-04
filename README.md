@@ -97,7 +97,10 @@ gcloud functions deploy raindropToGhostSync \
 
 📌 Replace:
 -	YOUR_REGION with a region like us-central1
--	YOUR_* placeholders with your actual credentials
+-	RAINDROP_API_KEY with your Raindrop test token
+- GHOST_API_URL with your Ghost Admin API key
+- GHOST_ADMIN_API_KEY with your YOUR_ADMIN_KEY
+-	SYNC_SECRET with your token
 
 When prompted:
 ```
@@ -109,12 +112,12 @@ Allow unauthenticated invocations of new function [raindropToGhostSync]? (y/N)? 
 
 ### 🧪 Testing the Function
 
-Trigger the sync manually with curl:
+Trigger the sync manually with curl using your SYNC_SECRET:
 ```
 curl -X POST https://REGION-PROJECT.cloudfunctions.net/raindropToGhostSync \
   -H "Authorization: Bearer YOUR_SECRET"
 ```
-To verify your Raindrop bookmarks are being tagged:
+To verify your Raindrop bookmarks are being tagged using YOUR_RAINDROP_API_KEY:
 ```
 curl -H "Authorization: Bearer YOUR_RAINDROP_API_KEY" \
   "https://api.raindrop.io/rest/v1/raindrops/0?tag=1"
@@ -125,7 +128,7 @@ curl -H "Authorization: Bearer YOUR_RAINDROP_API_KEY" \
 
 ### 🔁 Updating the Function
 
-If you make changes to index.js, re-deploy using:
+If you make changes to index.js, re-deploy using YOUR_REGION:
 ```
 gcloud functions deploy raindropToGhostSync \
   --gen2 \
@@ -140,17 +143,61 @@ gcloud functions deploy raindropToGhostSync \
 
 ### ⏰ Automate with Google Cloud Scheduler
 
-To run the sync every minute:
+To run your Raindrop → Ghost sync automatically every minute, use Google Cloud Scheduler to call your function on a recurring schedule.
+
+---
+
+#### ✅ Step 1: Grant Invoke Permissions
+
+Cloud Scheduler needs permission to call your Cloud Function. Run:
 ```
-gcloud scheduler jobs create http raindrop-ghost-sync \
-  --schedule="* * * * *" \
-  --uri=https://REGION-PROJECT.cloudfunctions.net/raindropToGhostSync \
-  --http-method=POST \
-  --oauth-service-account-email=YOUR_SCHEDULER_SERVICE_ACCOUNT \
-  --headers="Authorization: Bearer YOUR_SECRET" \
-  --attempt-deadline=540s
+gcloud functions add-iam-policy-binding raindropToGhostSync \
+  --region=us-central1 \
+  --member="serviceAccount:SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/cloudfunctions.invoker"
+```
+Replace SERVICE_ACCOUNT_EMAIL with the service account Scheduler will use.
+
+To find that email:
+
+In most cases, the default is:
+```
+PROJECT_ID@appspot.gserviceaccount.com
+```
+You can confirm this in the IAM section of the Cloud Console or by running:
+```
+gcloud iam service-accounts list
 ```
 
+---
+
+#### ✅ Step 2: Create the Scheduler Job
+
+Once the correct service account has access, create the job (update this with your region, your cloud function URI, and your SYNC_SECRET :
+
+```
+gcloud scheduler jobs create http raindrop-ghost-sync \
+  --location=us-central1 \
+  --schedule="* * * * *" \
+  --uri=https://us-central1-YOUR_PROJECT.cloudfunctions.net/raindropToGhostSync \
+  --http-method=POST \
+  --headers="Authorization=Bearer ${SYNC_SECRET}" \
+  --attempt-deadline=540s
+```
+🔐 This sends your pre-defined SYNC_SECRET as a bearer token in the Authorization header. Your Cloud Function should reject requests that don’t include this.
+
+---
+
+### 🧪 Manual Test (Optional)
+
+You can test the sync manually by running:
+```
+gcloud scheduler jobs run raindrop-ghost-sync --location=us-central1
+```
+Check your function logs to confirm it was triggered successfully:
+```
+gcloud functions logs read raindropToGhostSync --region=us-central1 --limit=10
+```
 
 ---
 
