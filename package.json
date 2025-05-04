@@ -1,0 +1,13 @@
+{
+    "name": "raindrop-to-ghost-sync",
+    "version": "1.0.0",
+    "description": "Synchronizes Raindrop bookmarks with a Ghost blog",
+    "main": "index.js",
+    "dependencies": {
+      "@google-cloud/functions-framework": "^3.3.0",
+      "@tryghost/admin-api": "^1.13.11",
+      "axios": "^1.4.0"
+    },
+    "author": "Daniel Raffel",
+    "license": "GPL-3.0"
+  }
