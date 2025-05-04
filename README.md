@@ -1,14 +1,63 @@
 # raindrop-to-ghost-sync
 
-**raindrop-to-ghost-sync** is a serverless Google Cloud Function that syncs your [Raindrop.io](https://raindrop.io) bookmarks to your [Ghost](https://ghost.org) blog. It allows you to automatically publish curated bookmarks (tagged with `1`), along with notes and highlights, directly to your blog—ideal for public linkrolls or personal reading lists.
+**raindrop-to-ghost-sync** is a serverless Google Cloud Function that syncs your [Raindrop.io](https://raindrop.io) bookmarks to your [Ghost](https://ghost.org) blog. It lets you use a custom tag to automatically publish selected bookmarks—with notes and highlights—straight to your blog, making it perfect for public linkrolls or curated reading lists.
 
 > ✨ For a high-level overview and design rationale, check out [this post](https://danielraffel.me/2024/01/30/intriguing-stuff/).
 
 ---
 
+## 📚 Table of Contents
+
+- [Overview](#raindrop-to-ghost-sync)
+- [Why Use It?](#️-why-use-it)
+- [Example Workflow](#example-workflow)
+- [Features](#-features)
+- [Technical Stack](#️-technical-stack)
+- [Setup Instructions](#-setup-instructions)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. Clone the Repository](#2-clone-the-repository)
+  - [3. Install Dependencies](#3-install-dependencies)
+  - [4. Set Environment Variables](#4-set-environment-variables)
+  - [5. Deploy to Google Cloud Functions](#5-deploy-to-google-cloud-functions)
+  - [Testing the Function](#-testing-the-function)
+  - [Updating the Function](#-updating-the-function)
+  - [Automate with Google Cloud Scheduler](#-automate-with-google-cloud-scheduler)
+- [Manual Test (Optional)](#-manual-test-optional)
+- [How to Create a Custom Tag in index.js](#-how-to-create-a-custom-tag-in-indexjs)
+- [To Do](#-to-do)
+- [License](#-license)
+
+---
+
+## ⁉️ Why Use It?
+
+You can publish a link to your blog the moment you find something worth sharing using the Raindrop.io browser extension. It’s a fast, natural way to save and post what you’re reading.
+
+This also lets you post links to a dedicated section of your blog—without cluttering your main posts. With [Ghost.org](https://Ghost.org) adding ActivityPub support, you’ll soon be able to automatically syndicate these posts to the fediverse and other social platforms—while keeping full ownership of your content and avoiding the need to repost manually.
+
+You can use this feature to:
+- Share quotes with commentary  
+- Build a public reading list  
+- Leave breadcrumbs from your research  
+- Start lightweight posts that are part blog, part bookmark
+- Seamlessly distribute link posts to the fediverse
+
+---
+## Example Workflow
+
+1. Save a page using the Raindrop extension in your browser (desktop or mobile).<br>
+   <img src="https://github.com/user-attachments/assets/201f25ce-7077-41c6-b12c-8169c4ac2525" style="width:45%;">
+
+2. Highlight a passage and add a note using the Raindrop extension.<br>
+   <img src="https://github.com/user-attachments/assets/3fbddcd4-690f-4243-8257-8aced9fd26b9" style="width:45%;">
+
+3. Automatically publish to your Ghost blog.<br>
+   <img src="https://github.com/user-attachments/assets/ed8f1d67-0792-4146-ac09-6783f1fda386" style="width:45%;">
+
+---
 ## ✨ Features
 
-- **Automatic Publishing**: Syncs the most recent Raindrop bookmark with tag `1` to your Ghost blog.
+- **Automatic Publishing**: Syncs the most recent Raindrop bookmark with a custom tag of your choice to your Ghost blog.
 - **Update Detection**: If the bookmark was already synced, the corresponding Ghost post will be updated (not duplicated).
 - **Clean Formatting**: Notes and highlights are wrapped in semantic HTML and stored in a Ghost HTML card block.
 - **Metadata Embedded**: Posts include embedded metadata (like Raindrop ID and tags) for filtering or custom display logic.
@@ -32,19 +81,19 @@
 
 Before you begin, make sure you have:
 
-#### 🛠️ Google Cloud Setup
+#### 🛠️ Google Cloud Account
 
 - A [Google Cloud Platform (GCP)](https://cloud.google.com/) account
 - [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) installed and authenticated if you want to deploy locally
 - [Node.js and npm](https://nodejs.org/) installed (required to install dependencies and deploy the function via Google Cloud CLI)
 
-#### 🔖 A Raindrop Integration Configured
+#### 🔖 A Raindrop Account with Developer Integration Configured
 
 - A [Raindrop.io developer integration](https://developer.raindrop.io/v1/authentication)
 - A **test token** (used as the `RAINDROP_API_KEY` environment variable)
 - A **Raindrop Premium** account if you want notes on highlights to appear in Ghost
 
-#### 👻 Ghost Setup
+#### 👻 Ghost Blog Setup
 
 - A Ghost blog with [Admin API](https://ghost.org/docs/admin-api/) access
 - A **Ghost Admin API Key** and blog URL  
@@ -201,7 +250,7 @@ gcloud functions logs read raindropToGhostSync --region=us-central1 --limit=10
 
 ---
 
-### 🔧 What to Customize in index.js
+### 🔧 How to Create a Custom Tag in index.js 
 
 By default, the function looks for the most recent bookmark tagged with 1. You can change this by editing the tag filter in getLatestRaindropBookmark():
 ```
@@ -218,14 +267,15 @@ You can also adjust:
 
 ---
 
-### 📌 To Do (maybe / doubtful)
--	Add deletion support: Remove Ghost posts if the corresponding Raindrop no longer has tag 1
-  -	Strategy: Retrieve all links-tagged Ghost posts → extract raindrop-id from each → query Raindrop API → if tag is missing, delete the post
-  -	Consider adding a simple database or caching layer to avoid redundant API calls
--	Add support for a .env file
+## 📌 To Do
+
+- Add deletion support: Remove Ghost posts if the corresponding Raindrop no longer has the custom tag
+  - Strategy: Retrieve all links-tagged Ghost posts → extract raindrop-id from each → query Raindrop API → if tag is missing, delete the post
+  - Consider adding a simple database or caching layer to avoid redundant API calls
+- Add support for a `.env` file
 
 ---
 
-### 📄 License
+## 📄 License
 
 MIT License.
