@@ -248,6 +248,17 @@ Check your function logs to confirm it was triggered successfully:
 gcloud functions logs read raindropToGhostSync --region=us-central1 --limit=10
 ```
 
+Changed something in your Raindrop bookmark and don’t want to wait for an automated update? Trigger a sync manually with curl using your SYNC_SECRET:
+```
+curl -X POST https://REGION-PROJECT.cloudfunctions.net/raindropToGhostSync \
+  -H "Authorization: Bearer YOUR_SECRET"
+```
+Or make it even easier—add a shortcut to your terminal by including this in your ~/.zshrc:
+```
+alias pushlink='curl -X POST https://REGION-PROJECT.cloudfunctions.net/raindropToGhostSync -H "Authorization: Bearer YOUR_SECRET"'
+```
+Then just type `pushlink` in your terminal whenever you want to instantly sync a new link.
+
 ---
 
 ### 🔧 How to Create a Custom Tag in index.js 
