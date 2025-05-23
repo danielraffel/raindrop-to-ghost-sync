@@ -47,6 +47,93 @@ function shouldProcessBookmark(bookmark) {
     return hasNote || hasHighlights || hasHighlightNotes;
 }
 
+// Escape HTML to avoid malformed posts
+function escapeHtml(str) {
+    return str?.replace(/[&<>"']/g, function (m) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        })[m];
+    }) || '';
+}
+
+// Allow basic formatting tags like <b>, <strong>, <i>, <em>, and safe <a href="..."> links
+function sanitizeBasicHtml(str) {
+    const escaped = escapeHtml(str);
+    return escaped
+        .replace(/&lt;(\/?(?:b|strong|i|em))&gt;/gi, '<$1>')
+        .replace(/&lt;a href="([^"]+)"&gt;/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">')
+        .replace(/&lt;\/a&gt;/gi, '</a>');
+}
+
+// Convert simple newline and bullet formatting into HTML
+function convertNoteToHtml(text) {
+    const lines = text.split(/\r?\n/);
+    let html = '';
+    let bullets = [];
+    let inCodeBlock = false;
+    let codeLanguage = '';
+    let codeLines = [];
+
+    const flushBullets = () => {
+        if (bullets.length) {
+            html += '<ul>' + bullets.map(b => `<li>${sanitizeBasicHtml(b)}</li>`).join('') + '</ul>';
+            bullets = [];
+        }
+    };
+
+    const flushCodeBlock = () => {
+        if (codeLines.length) {
+            const codeContent = escapeHtml(codeLines.join('\n'));
+            html += `<pre><code${codeLanguage ? ` class="language-${codeLanguage}"` : ''}>${codeContent}</code></pre>`;
+            codeLines = [];
+        }
+    };
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+
+        // Handle fenced code blocks: ```lang
+        const codeBlockStart = trimmed.match(/^```(\w*)$/);
+        if (codeBlockStart) {
+            flushBullets();
+            inCodeBlock = true;
+            codeLanguage = codeBlockStart[1];
+            return;
+        }
+
+        if (trimmed === '```' && inCodeBlock) {
+            inCodeBlock = false;
+            flushCodeBlock();
+            return;
+        }
+
+        if (inCodeBlock) {
+            codeLines.push(line);
+            return;
+        }
+
+        // Handle bullets
+        if (/^[-*]\s+/.test(trimmed)) {
+            bullets.push(trimmed.replace(/^[-*]\s+/, ''));
+        } else if (trimmed) {
+            flushBullets();
+            // Handle inline code: `text`
+            const inlineCode = trimmed.replace(/`([^`]+)`/g, (_, code) => `<code>${escapeHtml(code)}</code>`);
+            html += `<p>${sanitizeBasicHtml(inlineCode)}</p>`;
+        } else {
+            flushBullets();
+        }
+    });
+
+    flushBullets();
+    flushCodeBlock();
+    return html;
+}
+
 // Create HTML content with structured metadata and formatting
 function formatGhostContent(bookmark) {
     const { _id, title, link, created, tags, note = '', highlights = [] } = bookmark;
@@ -63,9 +150,9 @@ function formatGhostContent(bookmark) {
         `raindrop-tags="${(tags || []).join(',')}">`
     );
 
-    // Add bookmark note first
+    // Add bookmark note first with structured formatting
     if (note.trim()) {
-        htmlParts.push(`<p>${escapeHtml(note)}</p>`);
+        htmlParts.push(convertNoteToHtml(note));
     }
 
     // Add each highlight + optional note
@@ -73,7 +160,7 @@ function formatGhostContent(bookmark) {
         if (h.text?.trim()) {
             htmlParts.push(`<blockquote><p>${escapeHtml(h.text)}</p></blockquote>`);
             if (h.note?.trim()) {
-                htmlParts.push(`<p>${escapeHtml(h.note)}</p>`);
+                htmlParts.push(convertNoteToHtml(h.note));
             }
         }
     });
@@ -95,19 +182,6 @@ function formatGhostContent(bookmark) {
     };
 }
 
-// Escape HTML to avoid malformed posts
-function escapeHtml(str) {
-    return str?.replace(/[&<>"']/g, function (m) {
-        return ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        })[m];
-    }) || '';
-}
-
 // Check if post already exists in Ghost
 async function findExistingPost(raindropId) {
     const posts = await ghost.posts.browse({
@@ -120,7 +194,6 @@ async function findExistingPost(raindropId) {
 
 // Main function
 functions.http('raindropToGhostSync', async (req, res) => {
-    // Authorization check
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${process.env.SYNC_SECRET}`) {
         console.warn('Unauthorized request - invalid secret');
@@ -154,7 +227,6 @@ functions.http('raindropToGhostSync', async (req, res) => {
                 updated_at: existingPost.updated_at,
                 ...ghostContent
             }, { source: 'html' });
-
             return res.status(200).send(`Updated post ${existingPost.id}`);
         } else {
             console.log('Creating new post');
