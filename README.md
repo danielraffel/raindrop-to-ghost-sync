@@ -12,6 +12,7 @@
 - [Why Use It?](#️-why-use-it)
 - [Example Workflow](#example-workflow)
 - [Features](#-features)
+- [Content Formatting](#-content-formatting)
 - [Technical Stack](#️-technical-stack)
 - [Setup Instructions](#-setup-instructions)
   - [1. Prerequisites](#1-prerequisites)
@@ -60,8 +61,40 @@ You can use this feature to:
 - **Automatic Publishing**: Syncs the most recent Raindrop bookmark with a custom tag of your choice to your Ghost blog.
 - **Update Detection**: If the bookmark was already synced, the corresponding Ghost post will be updated (not duplicated).
 - **Clean Formatting**: Notes and highlights are wrapped in semantic HTML and stored in a Ghost HTML card block.
+  - Paragraphs, line breaks, and bullet lists (`-` or `*`) are preserved.
+  - Inline code (`` `like this` ``) and fenced code blocks (```lang) are rendered using proper HTML code tags.
+  - Safe HTML tags like `<b>`, `<i>`, and `<a href="...">` are allowed and sanitized.
 - **Metadata Embedded**: Posts include embedded metadata (like Raindrop ID and tags) for filtering or custom display logic.
 - **RSS Feed Friendly**: Works well with Ghost’s RSS system to support custom feeds using the `links` tag.
+
+---
+### 🧾 Content Formatting
+
+When you add notes or highlights to a Raindrop bookmark, this function converts them into readable, structured HTML for Ghost.
+
+Supported features:
+
+- **Paragraphs**: Line breaks are preserved between paragraphs.
+- **Bullet Lists**: Lines starting with `-` or `*` are turned into `<ul><li>` HTML lists.
+- **Inline Code**: Wrap text in backticks like `` `code` `` to render it as `<code>code</code>`.
+- **Code Blocks**: Fenced code blocks using triple backticks (```) are supported and optionally language-tagged:
+
+  ```markdown
+  ```js
+  console.log("Hello");
+````
+
+````
+
+Becomes:
+
+```js
+console.log("Hello");
+````
+
+* **Safe HTML**: Simple tags like `<b>`, `<strong>`, `<i>`, `<em>`, and `<a href="...">` are preserved and sanitized for safe rendering in Ghost.
+
+* **Highlight + Note Pairing**: Highlights from Raindrop are rendered inside `<blockquote>` elements. Notes attached to highlights are displayed beneath them with full formatting.
 
 ---
 
