@@ -79,18 +79,20 @@ Supported features:
 - **Inline Code**: Wrap text in backticks like `` `code` `` to render it as `<code>code</code>`.
 - **Code Blocks**: Fenced code blocks using triple backticks (```) are supported and optionally language-tagged:
 
-  ```markdown
-  ```js
-  console.log("Hello");
-````
 
+Entering:
+
+````markdown
+```js
+console.log("Hello");
+```
 ````
 
 Becomes:
 
 ```js
 console.log("Hello");
-````
+```
 
 * **Safe HTML**: Simple tags like `<b>`, `<strong>`, `<i>`, `<em>`, and `<a href="...">` are preserved and sanitized for safe rendering in Ghost.
 
