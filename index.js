@@ -40,11 +40,41 @@ async function getLatestRaindropBookmark() {
 }
 
 // Check if a bookmark has a note or highlight or note on a highlight
+function getYouTubeVideoId(url) {
+    try {
+        const parsed = new URL(url);
+        const { hostname, pathname, searchParams } = parsed;
+
+        if (hostname === 'youtu.be') {
+            return pathname.slice(1);
+        }
+
+        if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'm.youtube.com') {
+            if (pathname === '/watch') {
+                return searchParams.get('v');
+            }
+            const shortsMatch = pathname.match(/^\/shorts\/([\w-]+)/);
+            if (shortsMatch) {
+                return shortsMatch[1];
+            }
+            const embedMatch = pathname.match(/^\/embed\/([\w-]+)/);
+            if (embedMatch) {
+                return embedMatch[1];
+            }
+        }
+    } catch (e) {
+        return null;
+    }
+    return null;
+}
+
+// Check if a bookmark has a note, highlight, highlight note, or is a YouTube link
 function shouldProcessBookmark(bookmark) {
     const hasNote = !!bookmark.note?.trim();
     const hasHighlights = Array.isArray(bookmark.highlights) && bookmark.highlights.length > 0;
     const hasHighlightNotes = bookmark.highlights?.some(h => h.note?.trim());
-    return hasNote || hasHighlights || hasHighlightNotes;
+    const isYouTube = !!getYouTubeVideoId(bookmark.link);
+    return hasNote || hasHighlights || hasHighlightNotes || isYouTube;
 }
 
 // Escape HTML to avoid malformed posts
@@ -150,7 +180,15 @@ function formatGhostContent(bookmark) {
         `raindrop-tags="${(tags || []).join(',')}">`
     );
 
-    // Add bookmark note first with structured formatting
+    // If bookmark link is a YouTube URL, embed the video player
+    const videoId = getYouTubeVideoId(link);
+    if (videoId) {
+        htmlParts.push(
+            `<div class="youtube-embed"><iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`
+        );
+    }
+
+    // Add bookmark note with structured formatting
     if (note.trim()) {
         htmlParts.push(convertNoteToHtml(note));
     }

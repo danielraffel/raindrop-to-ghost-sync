@@ -64,6 +64,7 @@ You can use this feature to:
   - Paragraphs, line breaks, and bullet lists (`-` or `*`) are preserved.
   - Inline code (`` `like this` ``) and fenced code blocks (```lang) are rendered using proper HTML code tags.
   - Safe HTML tags like `<b>`, `<i>`, and `<a href="...">` are allowed and sanitized.
+- **YouTube Embeds**: Bookmarks that link to YouTube automatically include an embedded video player above your note.
 - **Metadata Embedded**: Posts include embedded metadata (like Raindrop ID and tags) for filtering or custom display logic.
 - **RSS Feed Friendly**: Works well with Ghost’s RSS system to support custom feeds using the `links` tag.
 
