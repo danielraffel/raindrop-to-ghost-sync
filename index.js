@@ -45,21 +45,20 @@ function getYouTubeVideoId(url) {
         const parsed = new URL(url);
         const { hostname, pathname, searchParams } = parsed;
 
+        // Short URLs like https://youtu.be/VIDEO_ID
         if (hostname === 'youtu.be') {
-            return pathname.slice(1);
+            const id = pathname.slice(1).split(/[?#]/)[0];
+            return id || null;
         }
 
-        if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'm.youtube.com') {
+        // Any subdomain of youtube.com or youtube-nocookie.com
+        if (/^(?:.+\.)?(youtube\.com|youtube-nocookie\.com)$/.test(hostname)) {
             if (pathname === '/watch') {
                 return searchParams.get('v');
             }
-            const shortsMatch = pathname.match(/^\/shorts\/([\w-]+)/);
-            if (shortsMatch) {
-                return shortsMatch[1];
-            }
-            const embedMatch = pathname.match(/^\/embed\/([\w-]+)/);
-            if (embedMatch) {
-                return embedMatch[1];
+            const match = pathname.match(/^\/(?:embed|shorts)\/([\w-]+)/);
+            if (match) {
+                return match[1];
             }
         }
     } catch (e) {
