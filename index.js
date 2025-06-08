@@ -39,42 +39,147 @@ async function getLatestRaindropBookmark() {
     return null;
 }
 
-// Check if a bookmark has a note or highlight or note on a highlight
+// Helper to extract YouTube video ID from various URL formats
 function getYouTubeVideoId(url) {
-    try {
-        const parsed = new URL(url);
-        const { hostname, pathname, searchParams } = parsed;
-
-        if (hostname === 'youtu.be') {
-            return pathname.slice(1);
+    if (!url) return null;
+    let videoId = null;
+    const patterns = [
+        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?(?:.*&)?v=([^&]+)/,    // https://www.youtube.com/watch?v=VIDEO_ID or https://www.youtube.com/watch?time_continue=1&v=VIDEO_ID
+        /(?:https?:\/\/)?youtu\.be\/([^?]+)/,                               // https://youtu.be/VIDEO_ID
+        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^?]+)/,           // https://www.youtube.com/embed/VIDEO_ID
+        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^?]+)/           // https://www.youtube.com/shorts/VIDEO_ID
+    ];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            videoId = match[1];
+            if (videoId.includes('&')) {
+                videoId = videoId.split('&')[0];
+            }
+            break;
         }
+    }
+    return videoId;
+}
 
-        if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'm.youtube.com') {
-            if (pathname === '/watch') {
-                return searchParams.get('v');
-            }
-            const shortsMatch = pathname.match(/^\/shorts\/([\w-]+)/);
-            if (shortsMatch) {
-                return shortsMatch[1];
-            }
-            const embedMatch = pathname.match(/^\/embed\/([\w-]+)/);
-            if (embedMatch) {
-                return embedMatch[1];
-            }
-        }
-    } catch (e) {
-        return null;
+// Helper to generate YouTube embed code
+function generateYouTubeEmbed(videoId) {
+    return `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+}
+
+// Helper to extract Spotify embed path (e.g., album/ID, track/ID)
+function getSpotifyEmbedPath(url) {
+    if (!url) return null;
+    const spotifyPattern = /https?:\/\/open\.spotify\.com\/(album|track|episode|show|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(spotifyPattern);
+    if (match && match[1] && match[2]) {
+        return `${match[1]}/${match[2]}`;
     }
     return null;
 }
 
-// Check if a bookmark has a note, highlight, highlight note, or is a YouTube link
+// Helper to generate Spotify embed code
+function generateSpotifyEmbed(embedPath) {
+    let height = "152"; 
+    if (embedPath.startsWith('album/') || embedPath.startsWith('playlist/') || embedPath.startsWith('show/')) {
+        height = "352"; 
+    }
+    return `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/${embedPath}?utm_source=generator" width="100%" height="${height}" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+}
+
+// Check if a bookmark should be processed (has notes, highlights, or is a YouTube/Spotify link)
 function shouldProcessBookmark(bookmark) {
+    if (!bookmark) return false;
     const hasNote = !!bookmark.note?.trim();
     const hasHighlights = Array.isArray(bookmark.highlights) && bookmark.highlights.length > 0;
     const hasHighlightNotes = bookmark.highlights?.some(h => h.note?.trim());
-    const isYouTube = !!getYouTubeVideoId(bookmark.link);
-    return hasNote || hasHighlights || hasHighlightNotes || isYouTube;
+    const isYouTubeLink = !!getYouTubeVideoId(bookmark.link);
+    const isSpotifyLink = !!getSpotifyEmbedPath(bookmark.link);
+
+    return hasNote || hasHighlights || hasHighlightNotes || isYouTubeLink || isSpotifyLink;
+}
+
+// Create HTML content with structured metadata and formatting
+function formatGhostContent(bookmark) {
+    const { _id, title, link, created, tags = [], note = '', highlights = [], excerpt = '' } = bookmark;
+    const formattedDate = formatDate(created);
+    const htmlParts = [];
+
+    // Assuming escapeHtml and convertNoteToHtml are defined and in scope from elsewhere in the file.
+
+    htmlParts.push(
+        `<div class="link-item" ` +
+        `raindrop-id="${_id}" ` +
+        `raindrop-title="${escapeHtml(title || '')}" ` +
+        `raindrop-link="${escapeHtml(link || '')}" ` +
+        `raindrop-created="${formattedDate}" ` +
+        `raindrop-tags="${(tags || []).join(',')}"` +
+        `>`
+    );
+
+    let contentAdded = false;
+
+    if (note && note.trim()) {
+        htmlParts.push(convertNoteToHtml(note));
+        contentAdded = true;
+    }
+
+    let embedCode = null;
+    const youtubeVideoId = getYouTubeVideoId(link);
+    let spotifyEmbedPath = null; // Declare spotifyEmbedPath here
+
+    if (youtubeVideoId) {
+        embedCode = generateYouTubeEmbed(youtubeVideoId);
+    } else {
+        spotifyEmbedPath = getSpotifyEmbedPath(link); // Assign, don't re-declare
+        if (spotifyEmbedPath) {
+            embedCode = generateSpotifyEmbed(spotifyEmbedPath);
+        }
+    }
+
+    if (embedCode) {
+        if (contentAdded) {
+            htmlParts.push('<br>');
+        }
+        htmlParts.push(embedCode);
+        contentAdded = true;
+    }
+
+    if (highlights && highlights.length > 0) {
+        let firstHighlightProcessed = false;
+        highlights.forEach(h => {
+            if (h.text && h.text.trim()) {
+                if (contentAdded && !firstHighlightProcessed) {
+                    htmlParts.push('<br>');
+                }
+                firstHighlightProcessed = true;
+                htmlParts.push(`<blockquote><p>${escapeHtml(h.text)}</p></blockquote>`);
+                if (h.note && h.note.trim()) {
+                    htmlParts.push(convertNoteToHtml(h.note));
+                }
+            }
+        });
+    }
+
+    htmlParts.push(`</div>`);
+    const htmlContent = `<!--kg-card-begin: html-->\n${htmlParts.join('\n')}\n<!--kg-card-end: html-->`;
+
+    const newSystemTags = ['links'];
+    if (youtubeVideoId) newSystemTags.push('youtube');
+    if (spotifyEmbedPath && !youtubeVideoId) newSystemTags.push('spotify'); // Now spotifyEmbedPath is in scope
+    const combinedTags = [...new Set([...newSystemTags, ...tags])];
+
+    return {
+        title: title || 'Untitled',
+        html: htmlContent,
+        tags: combinedTags,
+        status: 'published',
+        visibility: 'public',
+        canonical_url: link,
+        custom_excerpt: excerpt || '',
+        meta_title: title || 'Untitled',
+        meta_description: excerpt || ''
+    };
 }
 
 // Escape HTML to avoid malformed posts
@@ -98,7 +203,6 @@ function sanitizeBasicHtml(str) {
         .replace(/&lt;a href="([^"]+)"&gt;/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">')
         .replace(/&lt;\/a&gt;/gi, '</a>');
 }
-
 // Convert simple newline and bullet formatting into HTML
 function convertNoteToHtml(text) {
     const lines = text.split(/\r?\n/);
@@ -164,62 +268,6 @@ function convertNoteToHtml(text) {
     return html;
 }
 
-// Create HTML content with structured metadata and formatting
-function formatGhostContent(bookmark) {
-    const { _id, title, link, created, tags, note = '', highlights = [] } = bookmark;
-    const formattedDate = formatDate(created);
-    const htmlParts = [];
-
-    // Add opening div with metadata attributes
-    htmlParts.push(
-        `<div class="link-item" ` +
-        `raindrop-id="${_id}" ` +
-        `raindrop-title="${escapeHtml(title)}" ` +
-        `raindrop-link="${escapeHtml(link)}" ` +
-        `raindrop-created="${formattedDate}" ` +
-        `raindrop-tags="${(tags || []).join(',')}">`
-    );
-
-    // If bookmark link is a YouTube URL, embed the video player
-    const videoId = getYouTubeVideoId(link);
-    if (videoId) {
-        htmlParts.push(
-            `<div class="youtube-embed"><iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`
-        );
-    }
-
-    // Add bookmark note with structured formatting
-    if (note.trim()) {
-        htmlParts.push(convertNoteToHtml(note));
-    }
-
-    // Add each highlight + optional note
-    highlights.forEach(h => {
-        if (h.text?.trim()) {
-            htmlParts.push(`<blockquote><p>${escapeHtml(h.text)}</p></blockquote>`);
-            if (h.note?.trim()) {
-                htmlParts.push(convertNoteToHtml(h.note));
-            }
-        }
-    });
-
-    // Close div and wrap in Ghost HTML card
-    htmlParts.push(`</div>`);
-    const htmlContent = `<!--kg-card-begin: html-->\n${htmlParts.join('\n')}\n<!--kg-card-end: html-->`;
-
-    return {
-        title: title || 'Untitled',
-        html: htmlContent,
-        tags: ['links'],
-        status: 'published',
-        visibility: 'public',
-        canonical_url: link,
-        custom_excerpt: bookmark.excerpt || '',
-        meta_title: title || 'Untitled',
-        meta_description: bookmark.excerpt || ''
-    };
-}
-
 // Check if post already exists in Ghost
 async function findExistingPost(raindropId) {
     const posts = await ghost.posts.browse({
@@ -232,6 +280,7 @@ async function findExistingPost(raindropId) {
 
 // Main function
 functions.http('raindropToGhostSync', async (req, res) => {
+    // Authorization check
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${process.env.SYNC_SECRET}`) {
         console.warn('Unauthorized request - invalid secret');
@@ -265,6 +314,7 @@ functions.http('raindropToGhostSync', async (req, res) => {
                 updated_at: existingPost.updated_at,
                 ...ghostContent
             }, { source: 'html' });
+
             return res.status(200).send(`Updated post ${existingPost.id}`);
         } else {
             console.log('Creating new post');
