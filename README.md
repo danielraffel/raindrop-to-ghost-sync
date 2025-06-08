@@ -64,7 +64,7 @@ You can use this feature to:
   - Paragraphs, line breaks, and bullet lists (`-` or `*`) are preserved.
   - Inline code (`` `like this` ``) and fenced code blocks (```lang) are rendered using proper HTML code tags.
   - Safe HTML tags like `<b>`, `<i>`, and `<a href="...">` are allowed and sanitized.
-- **YouTube Embeds**: Bookmarks that link to YouTube automatically include an embedded video player above your note.
+- **Media Embeds (YouTube & Spotify)**: Bookmarks linking to YouTube or Spotify automatically include an embedded player. If you've added a note to the Raindrop bookmark, your note will appear first, followed by the media player. These media links are processed even if they don't have other notes or highlights.
 - **Metadata Embedded**: Posts include embedded metadata (like Raindrop ID and tags) for filtering or custom display logic.
 - **RSS Feed Friendly**: Works well with Ghost’s RSS system to support custom feeds using the `links` tag.
 
@@ -98,6 +98,21 @@ console.log("Hello");
 * **Safe HTML**: Simple tags like `<b>`, `<strong>`, `<i>`, `<em>`, and `<a href="...">` are preserved and sanitized for safe rendering in Ghost.
 
 * **Highlight + Note Pairing**: Highlights from Raindrop are rendered inside `<blockquote>` elements. Notes attached to highlights are displayed beneath them with full formatting.
+
+* **Media Embeds**:
+  - **YouTube**: Links like `https://www.youtube.com/watch?v=VIDEO_ID` or `https://youtu.be/VIDEO_ID` will generate an iframe embed:
+    ```html
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    ```
+  - **Spotify**: Links like `https://open.spotify.com/album/ALBUM_ID` or `https://open.spotify.com/track/TRACK_ID` will generate an iframe embed:
+    ```html
+    <!-- For albums/playlists/shows -->
+    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/album/ALBUM_ID?utm_source=generator" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+
+    <!-- For tracks/episodes -->
+    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/TRACK_ID?utm_source=generator" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    ```
+  If a note exists on the Raindrop bookmark, it will be displayed above the embedded media player.
 
 ---
 
@@ -181,11 +196,11 @@ gcloud functions deploy raindropToGhostSync \
 ```
 
 📌 Replace:
--	YOUR_REGION with a region like us-central1
--	RAINDROP_API_KEY with your Raindrop test token
+- YOUR_REGION with a region like us-central1
+- RAINDROP_API_KEY with your Raindrop test token
 - GHOST_API_URL with your Ghost Admin API key
 - GHOST_ADMIN_API_KEY with your YOUR_ADMIN_KEY
--	SYNC_SECRET with your token
+- SYNC_SECRET with your token
 
 When prompted:
 ```
@@ -308,9 +323,9 @@ params: {
 }
 ```
 You can also adjust:
--	How the post content is formatted (inside formatGhostContent)
--	The logic for filtering out empty bookmarks (via shouldProcessBookmark)
--	Any HTML structure or metadata formatting as needed
+- How the post content is formatted (inside formatGhostContent)
+- The logic for filtering out empty bookmarks (via shouldProcessBookmark)
+- Any HTML structure or metadata formatting as needed
 
 ---
 
