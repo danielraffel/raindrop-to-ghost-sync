@@ -64,7 +64,7 @@ You can use this feature to:
   - Paragraphs, line breaks, and bullet lists (`-` or `*`) are preserved.
   - Inline code (`` `like this` ``) and fenced code blocks (```lang) are rendered using proper HTML code tags.
   - Safe HTML tags like `<b>`, `<i>`, and `<a href="...">` are allowed and sanitized.
-- **Media Embeds (YouTube & Spotify)**: Bookmarks linking to YouTube or Spotify automatically include an embedded player. If you've added a note to the Raindrop bookmark, your note will appear first, followed by the media player. These media links are processed even if they don't have other notes or highlights.
+- **Media Embeds (YouTube, Spotify & Bandcamp)**: Bookmarks linking to YouTube, Spotify, or Bandcamp automatically include an embedded player. If you've added a note to the Raindrop bookmark, your note will appear first, followed by the media player. These media links are processed even if they don't have other notes or highlights.
 - **Metadata Embedded**: Posts include embedded metadata (like Raindrop ID and tags) for filtering or custom display logic.
 - **RSS Feed Friendly**: Works well with Ghost’s RSS system to support custom feeds using the `links` tag.
 
@@ -113,6 +113,7 @@ console.log("Hello");
     <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/TRACK_ID?utm_source=generator" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
     ```
   If a note exists on the Raindrop bookmark, it will be displayed above the embedded media player.
+  - **Bandcamp**: Any track or album link from `bandcamp.com` will generate a responsive iframe embed using Bandcamp's oEmbed API.
 
 ---
 

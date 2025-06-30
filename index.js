@@ -78,6 +78,24 @@ function getSpotifyEmbedPath(url) {
     return null;
 }
 
+// Helper to detect Bandcamp links
+function isBandcampLink(url) {
+    return /bandcamp\.com/.test(url || '');
+}
+
+// Retrieve Bandcamp embed HTML via oEmbed
+async function getBandcampEmbedHtml(url) {
+    try {
+        const res = await axios.get('https://bandcamp.com/oembed', {
+            params: { url, format: 'json' }
+        });
+        return res.data?.html || null;
+    } catch (e) {
+        console.warn('Bandcamp oEmbed fetch failed:', e.message);
+        return null;
+    }
+}
+
 // Helper to generate Spotify embed code
 function generateSpotifyEmbed(embedPath) {
     let height = "152"; 
@@ -87,7 +105,7 @@ function generateSpotifyEmbed(embedPath) {
     return `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/${embedPath}?utm_source=generator" width="100%" height="${height}" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
 }
 
-// Check if a bookmark should be processed (has notes, highlights, or is a YouTube/Spotify link)
+// Check if a bookmark should be processed (has notes, highlights, or is a media link)
 function shouldProcessBookmark(bookmark) {
     if (!bookmark) return false;
     const hasNote = !!bookmark.note?.trim();
@@ -95,12 +113,13 @@ function shouldProcessBookmark(bookmark) {
     const hasHighlightNotes = bookmark.highlights?.some(h => h.note?.trim());
     const isYouTubeLink = !!getYouTubeVideoId(bookmark.link);
     const isSpotifyLink = !!getSpotifyEmbedPath(bookmark.link);
+    const isBandcamp = isBandcampLink(bookmark.link);
 
-    return hasNote || hasHighlights || hasHighlightNotes || isYouTubeLink || isSpotifyLink;
+    return hasNote || hasHighlights || hasHighlightNotes || isYouTubeLink || isSpotifyLink || isBandcamp;
 }
 
 // Create HTML content with structured metadata and formatting
-function formatGhostContent(bookmark) {
+async function formatGhostContent(bookmark) {
     const { _id, title, link, created, tags = [], note = '', highlights = [], excerpt = '' } = bookmark;
     const formattedDate = formatDate(created);
     const htmlParts = [];
@@ -126,14 +145,20 @@ function formatGhostContent(bookmark) {
 
     let embedCode = null;
     const youtubeVideoId = getYouTubeVideoId(link);
-    let spotifyEmbedPath = null; // Declare spotifyEmbedPath here
+    let spotifyEmbedPath = null;
+    let bandcampEmbedHtml = null;
 
     if (youtubeVideoId) {
         embedCode = generateYouTubeEmbed(youtubeVideoId);
     } else {
-        spotifyEmbedPath = getSpotifyEmbedPath(link); // Assign, don't re-declare
+        spotifyEmbedPath = getSpotifyEmbedPath(link);
         if (spotifyEmbedPath) {
             embedCode = generateSpotifyEmbed(spotifyEmbedPath);
+        } else if (isBandcampLink(link)) {
+            bandcampEmbedHtml = await getBandcampEmbedHtml(link);
+            if (bandcampEmbedHtml) {
+                embedCode = bandcampEmbedHtml;
+            }
         }
     }
 
@@ -166,7 +191,8 @@ function formatGhostContent(bookmark) {
 
     const newSystemTags = ['links'];
     if (youtubeVideoId) newSystemTags.push('youtube');
-    if (spotifyEmbedPath && !youtubeVideoId) newSystemTags.push('spotify'); // Now spotifyEmbedPath is in scope
+    if (spotifyEmbedPath && !youtubeVideoId) newSystemTags.push('spotify');
+    if (bandcampEmbedHtml && !youtubeVideoId && !spotifyEmbedPath) newSystemTags.push('bandcamp');
     const combinedTags = [...new Set([...newSystemTags, ...tags])];
 
     return {
@@ -305,7 +331,7 @@ functions.http('raindropToGhostSync', async (req, res) => {
         }
 
         const existingPost = await findExistingPost(bookmark._id);
-        const ghostContent = formatGhostContent(bookmark);
+        const ghostContent = await formatGhostContent(bookmark);
 
         if (existingPost) {
             console.log(`Updating existing post: ${existingPost.id}`);
